@@ -1,0 +1,141 @@
+<?php
+
+/**
+ * Implements hook_libraries_info()
+ */
+function kx_plyr_libraries_info()
+{
+  // libraries;
+  $libraries['plyr'] = array(
+    'name' => 'plyr',
+    'vendor url' => 'https://plyr.io',
+    'download url' => 'https://github.com/selz/plyr',
+    'version arguments' => array(
+      'file' => 'src/js/plyr.js',
+      'pattern' => '/v(\d.+)/',
+      'lines' => 5,
+    ),
+  );
+
+  return $libraries;
+}
+
+/**
+ * Implements hook_requirements;
+ */
+function kx_plyr_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+
+  if ($phase == 'runtime') {
+    // Check if the Bootstrap library is installed
+    if (($library = libraries_detect('plyr')) && !empty($library['installed'])) {
+      $requirements[] = array(
+        'title' => 'Plyr video plugin',
+        'value' => $t('Installed'),
+        'description' => $t('Plyr is installed'),
+        'severity' => REQUIREMENT_OK
+      );
+    }
+    else {
+      $requirements[] = array(
+        'title' => 'Plyr video plugin',
+        'value' => $t('Not Installed'),
+        'description' => $t('Please install the plyr library %url.', array('%url' => 'https://github.com/selz/plyr')),
+        'severity' => REQUIREMENT_ERROR
+      );
+    }
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_library().
+ */
+function kx_plyr_library()
+{
+  $plyr_path  = libraries_get_path('plyr');
+  $module_path  = drupal_get_path('module', 'kx_plyr');
+
+
+  $libraries['plyr'] = array(
+    'title' => 'Plyr',
+    'website' => '',
+    'version' => '1.8.2',
+    'js' => array(
+      $plyr_path .'/dist/plyr.js' => array('group' => JS_LIBRARY,),
+      $module_path . '/js/plyr_setup.js' => array(),
+    ),
+    'css' => array(
+      $plyr_path .'/dist/plyr.css' => array(),
+    ),
+    'dependencies' => array(
+      array('system', 'jquery'),
+    ),
+  );
+
+  return $libraries;
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function kx_plyr_field_formatter_info()
+{
+  return array(
+    'kx_plyr_player' => array(
+      'label' => t('Plyr player'),
+      'field types' => array('file'),
+      'multiple values' => FIELD_BEHAVIOR_DEFAULT,
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function kx_plyr_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display)
+{
+  $element = array();
+  switch ($display['type']) {
+    case 'kx_plyr_player':
+      if (!empty($items)) {
+        $element[0] = array(
+          '#theme' => 'kx_plyr_player',
+          '#files' => $items
+        );
+      }
+      break;
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function kx_plyr_theme()
+{
+  return array(
+    'kx_plyr_player' => array(
+      'variables' => array('files' => NULL),
+    ),
+  );
+}
+
+/**
+ * Theme function for 'kx_plyr_player' link field formatter.
+ */
+function theme_kx_plyr_player($variables)
+{
+  drupal_add_library('kx_plyr', 'plyr');
+
+  $source_rows = [];
+
+  foreach($variables['files'] as $delta => $item) {
+    $source_rows[] = '<source src="' . file_create_url($item['uri']) . '" type="'. $item['filemime'] .'">';
+  }
+
+  return "<video controls>".join(" ",$source_rows)."</video>";
+
+}
